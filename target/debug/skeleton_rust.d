@@ -1,1 +1,1 @@
-/Users/gudbrandschistad/IdeaProjects/cs686_blockchain_P1_Rust_skeleton/target/debug/skeleton_rust.dSYM: /Users/gudbrandschistad/IdeaProjects/cs686_blockchain_P1_Rust_skeleton/src/main.rs
+/Users/gudbrandschistad/IdeaProjects/Blockchain/target/debug/skeleton_rust.dSYM: /Users/gudbrandschistad/IdeaProjects/Blockchain/src/main.rs

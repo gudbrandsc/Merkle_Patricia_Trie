@@ -10,10 +10,12 @@ use std::path::Path;
 
 fn main() {
     println!("Hello, world!");
-    test_mpt_ext_basic();
-    test_mpt_leaf_basic();
+    test_mpt_ext();
+    test_mpt_leaf();
     test_mpt_delete_basic();
-    //test_mpt_ext();
+    test_mpt_branch();
+    test_mpt_leaf_basic();
+    test_mpt_ext_basic();
 }
 
 fn test_mpt_ext() {
@@ -141,7 +143,6 @@ fn test_mpt_ext() {
     assert_eq!(mpt.order_nodes(), inserted_trie);
 }
 
-#[test]
 fn test_mpt_leaf() {
     let mut inserted_trie = String::new();
     let mut mpt = MerklePatriciaTrie::new();
@@ -302,7 +303,6 @@ fn test_mpt_delete_basic() {
     assert_eq!(mpt.order_nodes(), read_file("src/mpt_tests/delete_basic_2.txt"));
 }
 
-#[test]
 fn test_mpt_branch() {
     let mut mpt = MerklePatriciaTrie::new();
     let mut inserted_trie = String::new();

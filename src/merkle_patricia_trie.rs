@@ -96,7 +96,6 @@ fn create_node_copy(node: &Node) -> Node {
 }
 
 
-#[allow(dead_code)]
 fn string_to_vec_u8(key: &str) -> Vec<u8> {
     let mut result : Vec<u8> = Vec::new();
     for value in key.chars() {
@@ -134,10 +133,6 @@ fn ascii_to_hex(encoded_arr: Vec<u8>) -> String {
     }
     return hex_string
 }
-
-
-#[allow(dead_code)]
-
 
 impl MerklePatriciaTrie {
     fn new() -> MerklePatriciaTrie {
@@ -204,7 +199,7 @@ impl MerklePatriciaTrie {
         rs
     }
 
-    fn ext_not_full_match(&mut self, mut ext_node_nibbel: Vec<u8>, ext_node_value: &str, mut new_key_nibbel: Vec<u8>, new_key_value: &str) -> String {
+    fn insert_ext_not_full_match(&mut self, mut ext_node_nibbel: Vec<u8>, ext_node_value: &str, mut new_key_nibbel: Vec<u8>, new_key_value: &str) -> String {
         let mut common_prefix = true;
         let mut new_ext_nibbel: Vec<u8> = Vec::new();
         let mut branch_array: [String; 17] = Default::default();
@@ -222,10 +217,6 @@ impl MerklePatriciaTrie {
                 common_prefix = false;
             }
         }
-        println!("Common prefix : {:?}", new_ext_nibbel);
-        println!("key prefix : {:?}", new_key_nibbel);
-        println!("ext prefix : {:?}", ext_node_nibbel);
-
 
         if new_key_nibbel.len() == 0 {
             println!("its 0");
@@ -379,20 +370,15 @@ impl MerklePatriciaTrie {
     }
 
     fn recusive_insert(&mut self, key: &Vec<u8>, new_value: &str, next_node_hash: &str) -> String {
-        println!("--------------------RECUSIVE INSERT METHOD HER!!!--------------------");
-        let real_node = self.db.get_mut(next_node_hash).unwrap();
-        let node = create_node_copy(real_node);
-        let mut return_value_hash =  String::from("");
+        let node = create_node_copy(self.db.get_mut(next_node_hash).unwrap());
         let mut nibbel_key = key.clone();
         let mut node_hash_ref_value_copy = String::from("");
         let mut call_recursive = false;
 
         match node {
             Node::Branch(branch) => {
-                println!("I found a branch ");
                 let mut branch_copy = branch.clone();
                 if nibbel_key.len() == 0 {
-                    println!("No more nibbels, insert in branch value");
                     branch_copy[16] = new_value.to_string();
                     let branch_node = Node::Branch(branch_copy);
                     let branch_hash = hash_node(&branch_node);
@@ -499,7 +485,7 @@ impl MerklePatriciaTrie {
                                         branch_copy[zero_index] = Self::recusive_insert(self, &nibbel_key.clone(), new_value, &branch[zero_index]);
 
                                     } else {
-                                        branch_copy[zero_index] = Self::ext_not_full_match(self, ext_nibbel_decoded, &value, nibbel_key.clone(), new_value);
+                                        branch_copy[zero_index] = Self::insert_ext_not_full_match(self, ext_nibbel_decoded, &value, nibbel_key.clone(), new_value);
                                     }
                                     //Todo remove old hash
                                     println!("Updateing branch index {:?} after recursive", zero_index);
@@ -533,7 +519,7 @@ impl MerklePatriciaTrie {
                     println!("Found leaf node with nibbel: {:?}", current_node_nibbel_decoded);
                     println!("Can we add exstender  {:?} = {:?}", current_node_nibbel_decoded[0],key[0]);
                     if current_node_nibbel_decoded[0] == key[0]{
-                        return_value_hash = Self::create_ext_node_from_branch_index(self, current_node_nibbel_decoded, new_value, nibbel_key, &value, &current_node_hash);
+                       let return_value_hash = Self::create_ext_node_from_branch_index(self, current_node_nibbel_decoded, new_value, nibbel_key, &value, &current_node_hash);
                         if next_node_hash == self.root {
                             self.root = return_value_hash.clone();
                         }
@@ -598,10 +584,6 @@ impl MerklePatriciaTrie {
 
                     }
                 } else {
-                    println!("Insert trough an exstention node");
-                    println!("nibbel is now:{:?} ", nibbel_key);
-                    println!("EXT nibbel is:{:?} ", current_node_nibbel_decoded);
-
                     let mut full_match = true;
                     let mut nibbel_key_copy = nibbel_key.clone();
                     let mut i = 0;
@@ -646,7 +628,7 @@ impl MerklePatriciaTrie {
                             println!("{:?}", current_node_nibbel_decoded);
                             println!("{:?}", nibbel_key);
 
-                            let updated_ext_node = Self::ext_not_full_match(self, current_node_nibbel_decoded, &value, nibbel_key, new_value);
+                            let updated_ext_node = Self::insert_ext_not_full_match(self, current_node_nibbel_decoded, &value, nibbel_key, new_value);
                             println!("Got hash from new structure that didnt match the current ext");
 
                             if self.root == current_node_hash {
@@ -1105,28 +1087,27 @@ impl MerklePatriciaTrie {
 
             },
             Node::Flag((encoded_prefix, value)) => {
-                println!("Its Flag node");
                 let first_nibbel = string_to_vec_u8(&ascii_to_hex(encoded_prefix.clone()));
                 let decoded_nibbel = compact_decode(encoded_prefix.clone());
+
+                //Check if the stored ref is a leaf node
                 if first_nibbel[0] == 2 || first_nibbel[0] == 3 {
-                    println!("The stored value is a leaf");
                     let mut leaf_nibbels : Vec<u8> = Vec::new();
+
+                    //Append the branch index  and 16 to the leaf nibbel
                     leaf_nibbels.push(stored_hash_index);
                     for v in decoded_nibbel {
                         leaf_nibbels.push(v);
                     }
-                    println!("Creating new leaf with nibbel {:?} and value {:?}", leaf_nibbels, value);
 
                     leaf_nibbels.push(0x10);
                     let new_leaf_node = Node::Flag((compact_encode(leaf_nibbels),value.to_string()));
                     let new_leaf_hash = hash_node(&new_leaf_node);
-                    //TODO remove old leaf
+                    self.db.remove(&stored_hash_value);
                     self.db.insert(new_leaf_hash.clone(), new_leaf_node);
                     return new_leaf_hash;
-
                 } else {
-                    println!("The stored value is an ext");
-
+                    //If the stored ref is to an ext node
                     let mut new_ext_nibbels : Vec<u8> = Vec::new();
                     new_ext_nibbels.push(stored_hash_index);
                     let current_nibbel_decoded = compact_decode(encoded_prefix.clone());
@@ -1134,26 +1115,21 @@ impl MerklePatriciaTrie {
                     for v in current_nibbel_decoded {
                         new_ext_nibbels.push(v);
                     }
-                    println!("Creating new ext node with nibbels: {:?}", new_ext_nibbels);
 
                     let new_ext_node = Node::Flag((compact_encode(new_ext_nibbels),value.to_string()));
                     let new_ext_hash = hash_node(&new_ext_node);
+                    self.db.remove(&stored_hash_value);
                     self.db.insert(new_ext_hash.clone(), new_ext_node);
                     return new_ext_hash;
-
                 }
-
-
             },
             Node::Null() => {
-                println!("Its null")
             },
         }
         return String::from("");
-
     }
 
-
+    //Method used to check if a branch holds more than 1 value/ref
     fn check_if_remove_branch(branch_array: &[String; 17]) -> bool{
         let mut stored_hashes = 0;
         let mut stored_hash_index = 0;
@@ -1171,8 +1147,8 @@ impl MerklePatriciaTrie {
         }
     }
 
+    //Method to get the value from the trie
     fn get(&mut self, key: &str) -> String {
-        println!("Seearch for key: {:?}", key.to_string());
         let mut key_prefix = string_to_vec_u8(&ascii_to_hex(string_to_ascii(&key)));
         let mut node_hash = self.root.clone();
         let mut done = false;
@@ -1180,24 +1156,18 @@ impl MerklePatriciaTrie {
 
         while !done {
             let node = self.db.get_mut(&node_hash).unwrap();
-            println!("Get node with hash {:?}", node_hash);
-
             match node {
                 Node::Branch(branch) => {
-                    println!("Found branch");
                     if key_prefix.len() == 0 {
-                        println!("Found the value in branch {:?}", branch.len() );
                         return branch[16].clone();
 
                     }
-
+                    //If branch holds a referance on the index then update node_hash
                     if branch[key_prefix[0] as usize] != "" {
-                        println!("Branch holds ref on index: {:?}", key_prefix[0]);
                         node_hash = branch[key_prefix[0] as usize].clone();
 
                         key_prefix = key_prefix[1..].to_vec();
-                    }else {
-                        println!("Branch has no hash ref stored at index: {:?}", key_prefix[0]);
+                    }else { // If branch dont have a value stored
                         result = String::from("");
                         done = true;
                     }
@@ -1206,48 +1176,32 @@ impl MerklePatriciaTrie {
                     println!("Its a ");
                     let first_nibbel = string_to_vec_u8(&ascii_to_hex(encoded_prefix.clone()))[0];
                     let node_prefix_decoded =  compact_decode(encoded_prefix.clone());
-                    println!("Its a {:?} ", first_nibbel);
 
-                    println!("Mathc with: {:?} : {:?}", node_prefix_decoded, key_prefix);
-
+                    //If a leaf node was found
                     if first_nibbel == 2 || first_nibbel == 3 {
-                        println!("Found leaf node.");
-
                         if node_prefix_decoded == key_prefix {
-                            println!("Got full match for the rest of the nibbel!!");
                             result = value.clone();
                             done = true;
 
                         }else {
-                            println!("The rest of the nibbel did not have full match with leaf nibbel");
                             result = String::from("");
                             done = true;
                         }
-                    }else {
-                        println!("Found ext node.");
-                        println!("Nibbels left: {:?}", key_prefix);
-                        println!("Nibbels ext left: {:?}", node_prefix_decoded);
-
+                    }else { // If node is an ext node
                         if key_prefix.len() == 0 || node_prefix_decoded.len() == 0 {
                             break;
                         }
                         for c in node_prefix_decoded {
-                            println!("Mathc prefix 0 ==  {:?} : {:?}", c, key_prefix[0]);
-
                             if c == key_prefix[0] {
                                 key_prefix.remove(0);
                                 node_hash = value.clone();
 
                             } else {
-                                println!("Nibbel of ext node with value: {:?} did not match nibbel of key:{:?}",c,key_prefix[0]);
                                 result = String::from("");
                                 done = true;
                                 break;
                             }
-
                         }
-
-                        // println!("loop round two with hash: {:?} ", node_hash);
                     }
                 },
                 Node::Null() => {},
@@ -1257,14 +1211,6 @@ impl MerklePatriciaTrie {
         return result;
     }
 }
-
-
-
-fn get_u8_bytes(v: u32) -> (u8) {
-    (v & 0x000000ff >>  0) as u8
-}
-
-#[allow(dead_code)]
 
 // If Leaf, ignore 16 at the end
 fn compact_decode(encoded_arr: Vec<u8>) -> Vec<u8> {
@@ -1286,8 +1232,6 @@ fn compact_decode(encoded_arr: Vec<u8>) -> Vec<u8> {
 
     result
 }
-
-#[allow(dead_code)]
 
 fn compact_encode(hex_array: Vec<u8>) -> Vec<u8> {
     let mut mut_hex_array:Vec<u8>  = hex_array.clone();
@@ -1322,7 +1266,6 @@ fn compact_encode(hex_array: Vec<u8>) -> Vec<u8> {
 
         i = i + 2;
     }
-//println!("encoded : {:?}", result);
     return result;
 }
 

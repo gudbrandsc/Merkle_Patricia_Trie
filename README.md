@@ -1,1 +1,3 @@
-# cs686_blockchain_P1_Rust_skeleton
+# Merkle_Patricia_Trie
+
+https://github.com/ethereum/wiki/wiki/Patricia-Tree
